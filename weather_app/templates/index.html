@@ -4,44 +4,61 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Weather Ultimate</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; margin: 0; }
-        .container { max-width: 800px; margin: auto; padding: 20px; }
-        input { padding: 12px; border-radius: 20px; border: none; width: 60%; }
-        button { padding: 12px 25px; border-radius: 20px; border: none; background: #007bff; color: white; cursor: pointer; }
-        .weather-card { background: #1e1e1e; padding: 30px; border-radius: 20px; margin-top: 20px; }
-        .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
-        .day-card { background: #2a2a2a; padding: 15px; border-radius: 15px; }
-        .ai-box { background: #333; padding: 15px; border-left: 5px solid #007bff; margin: 20px 0; font-style: italic; }
+        :root { --bg: #0b0e14; --card: #161b22; --accent: #00a8ff; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; }
+        .app-container { max-width: 1200px; margin: auto; padding: 20px; }
+        .search-bar { display: flex; gap: 10px; justify-content: center; margin-bottom: 30px; align-items: center; }
+        input { background: #1c2128; border: 1px solid #30363d; color: white; padding: 12px; border-radius: 8px; width: 300px; }
+        select { background: #1c2128; color: white; border-radius: 8px; padding: 10px; }
+        button { background: var(--accent); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .weather-card { background: var(--card); padding: 30px; border-radius: 20px; text-align: center; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+        .stat-item { background: #0d1117; padding: 15px; border-radius: 12px; font-size: 0.9em; }
+        
+        #map { height: 300px; border-radius: 15px; margin-top: 20px; }
+        .forecast-container { display: flex; gap: 10px; overflow-x: auto; margin-top: 20px; padding-bottom: 10px; }
+        .day-card { background: var(--card); min-width: 120px; padding: 15px; border-radius: 15px; text-align: center; }
+        .ai-banner { background: linear-gradient(90deg, #3a0ca3, #7209b7); padding: 15px; border-radius: 10px; margin: 20px 0; font-style: italic; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Weather AI Ultimate</h1>
-        <form method="POST"> {% csrf_token %}
-            <input type="text" name="city" placeholder="Enter city name..." required>
-            <button type="submit">Search</button>
-        </form>
-
-        {% if weather %}
-        <div class="weather-card">
-            <h2>{{ weather.city }}</h2>
-            <img src="http://openweathermap.org/img/wn/{{ weather.icon }}@2x.png">
-            <h1>{{ weather.temp }}°C</h1>
-            <p>{{ weather.desc|title }}</p>
-
-            <div class="ai-box">
-                <p><strong>AI Tip:</strong> {{ weather.ai_insight }}</p>
-            </div>
-
-            {% if weather.audio_data %}
-            <audio id="weatherAudio" autoplay>
-                <source src="data:audio/mp3;base64,{{ weather.audio_data }}" type="audio/mp3">
-            </audio>
-            {% endif %}
+    <div class="app-container">
+        <div class="search-bar">
+            <form method="POST" style="display:flex; gap:10px;"> {% csrf_token %}
+                <input type="text" name="city" placeholder="Search city or use voice..." required>
+                <select name="speed">
+                    <option value="normal">Speed: Normal</option>
+                    <option value="slow">Speed: Slow</option>
+                </select>
+                <button type="submit">SEARCH</button>
+            </form>
         </div>
 
-        <div class="forecast-grid">
+        {% if weather %}
+        <div class="ai-banner">✨ {{ weather.ai_insight }}</div>
+        
+        <div class="main-grid">
+            <div class="weather-card">
+                <h2>{{ weather.city }}</h2>
+                <h1 style="font-size: 4em; margin: 10px 0;">{{ weather.temp }}°C</h1>
+                <p>{{ weather.desc|title }}</p>
+                <div class="stats-grid">
+                    <div class="stat-item">💧 Humidity<br><strong>{{ weather.humidity }}%</strong></div>
+                    <div class="stat-item">🌬️ Wind<br><strong>{{ weather.wind }} m/s</strong></div>
+                    <div class="stat-item">🧭 Pressure<br><strong>{{ weather.pressure }} hPa</strong></div>
+                </div>
+                {% if weather.audio %}
+                <audio autoplay><source src="data:audio/mp3;base64,{{ weather.audio }}" type="audio/mp3"></audio>
+                {% endif %}
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <div class="forecast-container">
             {% for day in forecast %}
             <div class="day-card">
                 <strong>{{ day.day }}</strong><br>
@@ -52,5 +69,14 @@
         </div>
         {% endif %}
     </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        {% if weather %}
+        var map = L.map('map').setView([{{ weather.lat }}, {{ weather.lon }}], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.marker([{{ weather.lat }}, {{ weather.lon }}]).addTo(map);
+        {% endif %}
+    </script>
 </body>
 </html>
