@@ -1,4 +1,3 @@
-
 import os
 import requests
 import google.generativeai as genai
@@ -8,7 +7,7 @@ import base64
 from io import BytesIO
 from gtts import gTTS
 
-# AI Configuration
+# Configure AI
 genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -17,7 +16,6 @@ def index(request):
     weather_data = {}
     forecast_list = []
     
-    # Initialize History in Session if not exists
     if 'history' not in request.session:
         request.session['history'] = []
 
@@ -33,11 +31,11 @@ def index(request):
                 lat, lon = geo_res[0]['lat'], geo_res[0]['lon']
                 city_name = f"{geo_res[0]['name']}, {geo_res[0]['country']}"
 
-                # Add to History (avoid duplicates)
+                # Update History
                 history = request.session['history']
                 if city_name not in history:
                     history.insert(0, city_name)
-                    request.session['history'] = history[:10] # Keep last 10
+                    request.session['history'] = history[:10]
                     request.session.modified = True
 
                 # 2. Weather & Forecast
@@ -54,10 +52,10 @@ def index(request):
                         })
 
                 # 3. AI Voice
-                ai_insight = "Enjoy the weather!"
+                ai_insight = "Enjoy your day!"
                 audio_base = ""
                 try:
-                    prompt = f"1-line witty weather tip for {city_name} at {round(curr_res['main']['temp'])}C."
+                    prompt = f"1-line weather tip for {city_name} at {round(curr_res['main']['temp'])}C."
                     ai_insight = model.generate_content(prompt).text.strip()
                     tts = gTTS(text=ai_insight, lang='en', slow=is_slow)
                     fp = BytesIO()
@@ -66,21 +64,14 @@ def index(request):
                 except: pass
 
                 weather_data = {
-                    'city': city_name,
-                    'temp': round(curr_res['main']['temp']),
-                    'desc': curr_res['weather'][0]['description'],
-                    'icon': curr_res['weather'][0]['icon'],
-                    'humidity': curr_res['main']['humidity'],
-                    'wind': curr_res['wind']['speed'],
-                    'pressure': curr_res['main']['pressure'],
-                    'ai_insight': ai_insight,
-                    'audio': audio_base,
-                    'lat': lat, 'lon': lon
+                    'city': city_name, 'temp': round(curr_res['main']['temp']),
+                    'desc': curr_res['weather'][0]['description'], 'icon': curr_res['weather'][0]['icon'],
+                    'humidity': curr_res['main']['humidity'], 'wind': curr_res['wind']['speed'],
+                    'pressure': curr_res['main']['pressure'], 'ai_insight': ai_insight,
+                    'audio': audio_base, 'lat': lat, 'lon': lon
                 }
         except Exception as e: print(e)
 
     return render(request, 'index.html', {
-        'weather': weather_data, 
-        'forecast': forecast_list,
-        'history': request.session['history']
+        'weather': weather_data, 'forecast': forecast_list, 'history': request.session['history']
     })

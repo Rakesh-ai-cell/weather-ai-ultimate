@@ -1,82 +1,82 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Weather Ultimate</title>
+    <title>AI Weather Dashboard</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #0b0e14; --sidebar: #0d1117; --card: #161b22; --accent: #00a8ff; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        /* Theme Variables */
+        :root[data-theme="dark"] { --bg: #0b0e14; --sidebar: #0d1117; --card: #161b22; --text: #ffffff; --border: #30363d; }
+        :root[data-theme="light"] { --bg: #f0f2f5; --sidebar: #ffffff; --card: #ffffff; --text: #1c1e21; --border: #ccd0d5; }
         
-        /* Sidebar History */
-        .sidebar { width: 250px; background: var(--sidebar); padding: 20px; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
-        .history-item { padding: 10px; margin: 5px 0; background: #1c2128; border-radius: 5px; cursor: pointer; font-size: 0.9em; text-decoration: none; color: gray; }
-        .history-item:hover { color: white; background: #30363d; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; transition: 0.3s; }
+        .sidebar { width: 250px; background: var(--sidebar); padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; }
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; }
+        
+        /* Search & Toggle */
+        .top-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 25px; }
+        input { background: var(--sidebar); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 8px; flex: 1; }
+        .btn-toggle { background: #30363d; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
+        .mic-btn { background: var(--accent); border: none; cursor: pointer; font-size: 1.2em; padding: 10px; border-radius: 50%; }
 
-        /* Main Content */
-        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
-        .search-container { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        input { background: #1c2128; border: 1px solid #30363d; color: white; padding: 12px; border-radius: 8px; width: 400px; }
-        .mic-btn { background: #30363d; border: none; color: white; padding: 10px; border-radius: 50%; cursor: pointer; font-size: 1.2em; }
-        .mic-active { color: #ff4d4d; animation: pulse 1s infinite; }
-        
+        /* Dashboard Layout */
         .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .info-card { background: var(--card); padding: 25px; border-radius: 20px; }
-        #map { height: 350px; border-radius: 20px; }
-        .forecast-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 20px; }
-        .day-box { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; }
-        .ai-banner { background: #5a189a; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-style: italic; }
+        .info-card { background: var(--card); padding: 20px; border-radius: 15px; border: 1px solid var(--border); }
+        #map { height: 350px; border-radius: 15px; border: 1px solid var(--border); }
+        .forecast-container { display: flex; gap: 10px; margin-top: 20px; }
+        .day-card { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; flex: 1; border: 1px solid var(--border); }
+        .ai-banner { background: linear-gradient(90deg, #5a189a, #3c096c); padding: 15px; border-radius: 10px; margin-bottom: 20px; color: white; }
         
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .history-link { display: block; padding: 10px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border); font-size: 0.9em; }
+        .history-link:hover { background: #00a8ff22; }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <h3>HISTORY</h3>
         {% for item in history %}
-        <a href="?city={{ item }}" class="history-item">{{ item }}</a>
+        <a href="?city={{ item }}" class="history-link">{{ item }}</a>
         {% endfor %}
     </div>
 
     <div class="main-content">
-        <form method="POST" id="searchForm" class="search-container"> {% csrf_token %}
-            <input type="text" name="city" id="cityInput" placeholder="Enter city..." required>
-            <button type="button" class="mic-btn" id="micBtn">🎤</button>
-            <select name="speed" style="background:#1c2128; color:white; border-radius:8px; border:1px solid #30363d;">
-                <option value="normal">Normal</option>
-                <option value="slow">Slow</option>
-            </select>
-            <button type="submit" style="background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">SEARCH</button>
-        </form>
+        <div class="top-bar">
+            <form method="POST" id="searchForm" style="display:flex; flex:1; gap:10px;"> {% csrf_token %}
+                <input type="text" name="city" id="cityInput" placeholder="Search city..." required>
+                <button type="button" class="mic-btn" id="micBtn">🎤</button>
+                <select name="speed" style="background:var(--sidebar); color:var(--text); border-radius:8px;">
+                    <option value="normal">Normal</option>
+                    <option value="slow">Slow</option>
+                </select>
+                <button type="submit" style="background:#00a8ff; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">SEARCH</button>
+            </form>
+            <button class="btn-toggle" onclick="toggleTheme()">🌓 Mode</button>
+        </div>
 
         {% if weather %}
-        <div class="ai-banner">✨ AI Tip: {{ weather.ai_insight }}</div>
-        
+        <div class="ai-banner">✨ {{ weather.ai_insight }}</div>
         <div class="dashboard-grid">
             <div class="info-card">
                 <h2>{{ weather.city }}</h2>
                 <h1 style="font-size: 4em; margin: 0;">{{ weather.temp }}°C</h1>
                 <p>{{ weather.desc|title }}</p>
-                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px;">
-                    <div>💧 Humidity<br><strong>{{ weather.humidity }}%</strong></div>
-                    <div>🌬️ Wind<br><strong>{{ weather.wind }}m/s</strong></div>
-                    <div>🧭 Pressure<br><strong>{{ weather.pressure }}hPa</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                    <span>💧 {{ weather.humidity }}%</span>
+                    <span>🌬️ {{ weather.wind }}m/s</span>
+                    <span>🧭 {{ weather.pressure }}hPa</span>
                 </div>
-                {% if weather.audio %}
-                <audio autoplay><source src="data:audio/mp3;base64,{{ weather.audio }}" type="audio/mp3"></audio>
-                {% endif %}
+                {% if weather.audio %}<audio autoplay><source src="data:audio/mp3;base64,{{ weather.audio }}" type="audio/mp3"></audio>{% endif %}
             </div>
             <div id="map"></div>
         </div>
 
-        <div class="forecast-row">
+        <div class="forecast-container">
             {% for day in forecast %}
-            <div class="day-box">
-                <div>{{ day.day }}</div>
-                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png">
-                <div>{{ day.temp }}°C</div>
+            <div class="day-card">
+                <strong>{{ day.day }}</strong><br>
+                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png"><br>
+                {{ day.temp }}°C
             </div>
             {% endfor %}
         </div>
@@ -85,26 +85,36 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 1. Microphone / Speech Recognition
-        const micBtn = document.getElementById('micBtn');
-        const cityInput = document.getElementById('cityInput');
+        // 1. Theme Toggle Logic
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', target);
+            localStorage.setItem('theme', target);
+        }
+        // Load saved theme
+        document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
 
+        // 2. Microphone Search
+        const micBtn = document.getElementById('micBtn');
         if ('webkitSpeechRecognition' in window) {
-            const recognition = new webkitSpeechRecognition();
-            recognition.onstart = () => micBtn.classList.add('mic-active');
-            recognition.onend = () => micBtn.classList.remove('mic-active');
-            recognition.onresult = (event) => {
-                cityInput.value = event.results[0][0].transcript;
+            const rec = new webkitSpeechRecognition();
+            rec.onresult = (e) => { 
+                document.getElementById('cityInput').value = e.results[0][0].transcript;
                 document.getElementById('searchForm').submit();
             };
-            micBtn.onclick = () => recognition.start();
-        } else { micBtn.style.display = 'none'; }
+            micBtn.onclick = () => rec.start();
+        }
 
-        // 2. Map Initialization
+        // 3. Map with Layer Toggle
         {% if weather %}
-        var map = L.map('map').setView([{{ weather.lat }}, {{ weather.lon }}], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png').addTo(map);
-        L.marker([{{ weather.lat }}, {{ weather.lon }}]).addTo(map);
+        var map = L.map('map').setView([{{ weather.lat }}, {{ weather.lon }}], 12);
+        var street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+        L.control.layers({"Streets": street, "Satellite": sat}).addTo(map);
+        L.marker([{{ weather.lat }}, {{ weather.lon }}]).addTo(map).bindPopup("{{ weather.city }}").openPopup();
+        setTimeout(() => map.invalidateSize(), 500);
         {% endif %}
     </script>
 </body>
