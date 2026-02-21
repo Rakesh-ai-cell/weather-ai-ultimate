@@ -1,3 +1,4 @@
+
 import os
 import requests
 import google.generativeai as genai
@@ -9,7 +10,7 @@ from gtts import gTTS
 
 # Configure AI
 genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-1.5-flash')
+ai_model = genai.GenerativeModel('gemini-1.5-flash')
 
 def index(request):
     api_key = os.environ.get('WEATHER_API_KEY')
@@ -31,7 +32,7 @@ def index(request):
                 lat, lon = geo_res[0]['lat'], geo_res[0]['lon']
                 city_name = f"{geo_res[0]['name']}, {geo_res[0]['country']}"
 
-                # Update History
+                # History Management
                 history = request.session['history']
                 if city_name not in history:
                     history.insert(0, city_name)
@@ -51,12 +52,12 @@ def index(request):
                             'icon': item['weather'][0]['icon']
                         })
 
-                # 3. AI Voice
-                ai_insight = "Enjoy your day!"
+                # 3. AI Voice Insight
+                ai_insight = "Clear skies!"
                 audio_base = ""
                 try:
-                    prompt = f"1-line weather tip for {city_name} at {round(curr_res['main']['temp'])}C."
-                    ai_insight = model.generate_content(prompt).text.strip()
+                    prompt = f"Short 1-line weather tip for {city_name} at {round(curr_res['main']['temp'])}C."
+                    ai_insight = ai_model.generate_content(prompt).text.strip()
                     tts = gTTS(text=ai_insight, lang='en', slow=is_slow)
                     fp = BytesIO()
                     tts.write_to_fp(fp)
@@ -70,8 +71,11 @@ def index(request):
                     'pressure': curr_res['main']['pressure'], 'ai_insight': ai_insight,
                     'audio': audio_base, 'lat': lat, 'lon': lon
                 }
-        except Exception as e: print(e)
+        except Exception as e:
+            print(f"Error: {e}")
 
     return render(request, 'index.html', {
-        'weather': weather_data, 'forecast': forecast_list, 'history': request.session['history']
+        'weather': weather_data, 
+        'forecast': forecast_list, 
+        'history': request.session['history']
     })
