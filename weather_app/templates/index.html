@@ -1,185 +1,56 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8"><title>Weather AI Ultimate</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Weather Ultimate</title>
     <style>
-        :root { --accent: #38bdf8; --ai: #a855f7; --bg: #0f172a; --text: #f8fafc; --glass: rgba(255,255,255,0.05); }
-        [data-theme="light"] { --bg: #f1f5f9; --text: #1e293b; --glass: rgba(0,0,0,0.05); }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
-        
-        .sidebar { width: 260px; background: rgba(0,0,0,0.2); padding: 30px 15px; border-right: 1px solid var(--glass); display: flex; flex-direction: column; }
-        .history-item { display: block; padding: 12px; margin: 5px 0; background: var(--glass); border-radius: 8px; color: inherit; text-decoration: none; font-size: 0.9rem; transition: 0.3s; }
-        .history-item:hover { background: var(--accent); color: black; }
-        
-        .main { flex: 1; padding: 30px; overflow-y: auto; }
-        .search-area { display: flex; gap: 10px; margin-bottom: 25px; position: relative; max-width: 900px; align-items: center; }
-        #city-input { flex: 1; padding: 12px 20px; border-radius: 12px; border: 1px solid var(--glass); background: var(--glass); color: inherit; font-size: 1rem; }
-        
-        .speed-control { display: flex; align-items: center; gap: 8px; background: var(--glass); padding: 8px 15px; border-radius: 12px; border: 1px solid var(--glass); font-size: 0.85rem; }
-        .speed-control select { background: transparent; color: inherit; border: none; outline: none; cursor: pointer; font-weight: bold; }
-
-        .ai-card { background: linear-gradient(135deg, #38bdf811, #a855f711); border: 1px solid var(--ai); padding: 20px; border-radius: 20px; margin-bottom: 20px; }
-        
-        .eq-container { display: none; align-items: flex-end; gap: 4px; height: 25px; margin-top: 10px; }
-        .bar { width: 5px; border-radius: 3px; animation: bounce 0.5s ease-in-out infinite alternate; background: var(--ai); }
-        @keyframes bounce { from { height: 5px; } to { height: 25px; } }
-
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat-box { background: var(--glass); padding: 15px; border-radius: 15px; text-align: center; border: 1px solid var(--glass); }
-        .visual-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
-        .box { background: var(--glass); border-radius: 20px; height: 280px; padding: 15px; }
-        .forecast-strip { display: flex; justify-content: space-around; margin-top: 20px; background: var(--glass); padding: 15px; border-radius: 15px; }
-        
-        #voice-unmute { display: none; position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: var(--ai); color: white; padding: 10px 25px; border-radius: 50px; cursor: pointer; z-index: 9999; box-shadow: 0 5px 15px rgba(0,0,0,0.4); font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; margin: 0; }
+        .container { max-width: 800px; margin: auto; padding: 20px; }
+        input { padding: 12px; border-radius: 20px; border: none; width: 60%; }
+        button { padding: 12px 25px; border-radius: 20px; border: none; background: #007bff; color: white; cursor: pointer; }
+        .weather-card { background: #1e1e1e; padding: 30px; border-radius: 20px; margin-top: 20px; }
+        .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin-top: 20px; }
+        .day-card { background: #2a2a2a; padding: 15px; border-radius: 15px; }
+        .ai-box { background: #333; padding: 15px; border-left: 5px solid #007bff; margin: 20px 0; font-style: italic; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>Weather AI Ultimate</h1>
+        <form method="POST"> {% csrf_token %}
+            <input type="text" name="city" placeholder="Enter city name..." required>
+            <button type="submit">Search</button>
+        </form>
 
-<div id="voice-unmute" onclick="manualPlay()">🔊 Tap to Hear AI Assistant</div>
+        {% if weather %}
+        <div class="weather-card">
+            <h2>{{ weather.city }}</h2>
+            <img src="http://openweathermap.org/img/wn/{{ weather.icon }}@2x.png">
+            <h1>{{ weather.temp }}°C</h1>
+            <p>{{ weather.desc|title }}</p>
 
-<aside class="sidebar">
-    <h3 style="opacity: 0.4; font-size: 0.7rem; letter-spacing: 1px;">HISTORY</h3>
-    {% for city in history %}<a href="?city={{ city }}" class="history-item">📍 {{ city }}</a>{% endfor %}
-    <button onclick="toggleTheme()" style="margin-top:auto; width:100%; padding:10px; border-radius:10px; cursor:pointer; background:var(--glass); color:inherit; border:1px solid var(--glass);">🌓 Toggle Theme</button>
-</aside>
-
-<main class="main">
-    <form method="POST" id="search-form" class="search-area">
-        {% csrf_token %}
-        <input type="text" name="city" id="city-input" placeholder="Search city or use voice..." required>
-        
-        <div class="speed-control">
-            <span>🏃 Speed:</span>
-            <select name="speed">
-                <option value="normal" {% if not weather.is_slow %}selected{% endif %}>Normal</option>
-                <option value="slow" {% if weather.is_slow %}selected{% endif %}>Slow</option>
-            </select>
-        </div>
-
-        <span id="mic-trigger" style="cursor:pointer; font-size: 1.5rem;">🎤</span>
-        <button type="submit" style="background:var(--accent); border:none; padding:12px 25px; border-radius:12px; font-weight:bold; cursor:pointer;">SEARCH</button>
-    </form>
-
-    {% if weather.city %}
-    <div class="ai-card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <p id="ai-text" style="margin:0; font-size:1.1rem; color:var(--ai);">✨ {{ weather.ai_insight }}</p>
-                <div class="eq-container" id="equalizer">
-                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-                </div>
+            <div class="ai-box">
+                <p><strong>AI Tip:</strong> {{ weather.ai_insight }}</p>
             </div>
+
             {% if weather.audio_data %}
-            <audio id="ai-audio" src="data:audio/mp3;base64,{{ weather.audio_data }}"></audio>
-            <button onclick="manualPlay()" style="background:none; border:1px solid var(--ai); color:inherit; padding:6px 15px; border-radius:8px; cursor:pointer;">🔊 Replay</button>
+            <audio id="weatherAudio" autoplay>
+                <source src="data:audio/mp3;base64,{{ weather.audio_data }}" type="audio/mp3">
+            </audio>
             {% endif %}
         </div>
-    </div>
 
-    <div style="display:flex; align-items:center; margin-bottom:20px; background:var(--glass); padding:20px; border-radius:20px;">
-        <div style="flex:1;">
-            <h1 style="margin:0; font-size:2.5rem;">{{ weather.city }}</h1>
-            <p style="opacity:0.7;">{{ weather.desc|title }}</p>
+        <div class="forecast-grid">
+            {% for day in forecast %}
+            <div class="day-card">
+                <strong>{{ day.day }}</strong><br>
+                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png"><br>
+                {{ day.temp }}°C
+            </div>
+            {% endfor %}
         </div>
-        <div style="text-align:right;">
-            <div style="font-size:3.5rem; font-weight:bold; color:var(--accent);">{{ weather.temp }}°C</div>
-            <img src="http://openweathermap.org/img/wn/{{ weather.icon }}@4x.png" width="80">
-        </div>
+        {% endif %}
     </div>
-
-    <div class="stats-grid">
-        <div class="stat-box">💧<br><small>Humidity</small><br><b>{{ weather.humidity }}%</b></div>
-        <div class="stat-box">🌬️<br><small>Wind</small><br><b>{{ weather.wind }} m/s</b></div>
-        <div class="stat-box">🧭<br><small>Pressure</small><br><b>{{ weather.pressure }} hPa</b></div>
-        <div class="stat-box">👁️<br><small>Visibility</small><br><b>{{ weather.visibility }} km</b></div>
-        <div class="stat-box">🌅<br><small>Sunrise</small><br><b>{{ weather.sunrise }}</b></div>
-        <div class="stat-box">🌇<br><small>Sunset</small><br><b>{{ weather.sunset }}</b></div>
-    </div>
-
-    <div class="visual-grid">
-        <div class="box"><canvas id="weatherChart"></canvas></div>
-        <div class="box" style="padding:0; overflow:hidden;">
-            <iframe width="100%" height="100%" frameborder="0" src="https://www.openstreetmap.org/export/embed.html?bbox={{ weather.bbox }}&layer=mapnik&marker={{ weather.marker }}"></iframe>
-        </div>
-    </div>
-
-    <div class="forecast-strip">
-        {% for f in weather.forecast %}
-        <div style="text-align:center;"><small>{{ f.day }}</small><br><img src="http://openweathermap.org/img/wn/{{ f.icon }}.png" width="40"><br><b>{{ f.temp }}°</b></div>
-        {% endfor %}
-    </div>
-    {% endif %}
-</main>
-
-<script>
-    const audio = document.getElementById('ai-audio');
-    const eq = document.getElementById('equalizer');
-    const unmuteBtn = document.getElementById('voice-unmute');
-    const temp = {{ weather.temp|default:20 }};
-
-    // 1. Voice Recognition
-    const mic = document.getElementById('mic-trigger');
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    mic.onclick = () => { recognition.start(); mic.style.color = 'red'; };
-    recognition.onresult = (e) => { 
-        document.getElementById('city-input').value = e.results[0][0].transcript; 
-        document.getElementById('search-form').submit(); 
-    };
-
-    // 2. Audio Control with Dynamic Color Equalizer
-    if (audio) {
-        audio.onplay = () => { 
-            let color = "#38bdf8"; // Cold
-            if (temp > 30) color = "#ef4444"; // Hot
-            else if (temp > 15) color = "#fb923c"; // Mild
-            document.querySelectorAll('.bar').forEach(b => b.style.background = color);
-            eq.style.display = 'flex'; 
-        };
-        audio.onended = () => { eq.style.display = 'none'; };
-    }
-
-    async function attemptPlay() {
-        if (!audio) return;
-        try {
-            await audio.play();
-            unmuteBtn.style.display = 'none';
-        } catch (err) {
-            unmuteBtn.style.display = 'block';
-        }
-    }
-
-    function manualPlay() {
-        if(audio) {
-            audio.play();
-            unmuteBtn.style.display = 'none';
-        }
-    }
-
-    window.onload = () => { if(audio) setTimeout(attemptPlay, 500); };
-    document.body.addEventListener('click', () => {
-        if (audio && audio.paused && audio.currentTime === 0) attemptPlay();
-    }, { once: true });
-
-    // 3. Chart Initialization
-    {% if weather.city %}
-    new Chart(document.getElementById('weatherChart'), {
-        type: 'line',
-        data: {
-            labels: {{ weather.chart_labels|safe }},
-            datasets: [{
-                label: 'Temp °C', data: {{ weather.chart_temps|safe }},
-                borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', fill: true, tension: 0.4
-            }]
-        },
-        options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-    {% endif %}
-
-    function toggleTheme() {
-        const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-    }
-</script>
 </body>
 </html>
