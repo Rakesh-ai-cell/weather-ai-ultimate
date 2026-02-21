@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,50 +7,62 @@
     <title>AI Weather Ultimate</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --bg: #0b0e14; --card: #161b22; --accent: #00a8ff; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; }
-        .app-container { max-width: 1200px; margin: auto; padding: 20px; }
-        .search-bar { display: flex; gap: 10px; justify-content: center; margin-bottom: 30px; align-items: center; }
-        input { background: #1c2128; border: 1px solid #30363d; color: white; padding: 12px; border-radius: 8px; width: 300px; }
-        select { background: #1c2128; color: white; border-radius: 8px; padding: 10px; }
-        button { background: var(--accent); color: white; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        :root { --bg: #0b0e14; --sidebar: #0d1117; --card: #161b22; --accent: #00a8ff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .weather-card { background: var(--card); padding: 30px; border-radius: 20px; text-align: center; }
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
-        .stat-item { background: #0d1117; padding: 15px; border-radius: 12px; font-size: 0.9em; }
+        /* Sidebar History */
+        .sidebar { width: 250px; background: var(--sidebar); padding: 20px; border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+        .history-item { padding: 10px; margin: 5px 0; background: #1c2128; border-radius: 5px; cursor: pointer; font-size: 0.9em; text-decoration: none; color: gray; }
+        .history-item:hover { color: white; background: #30363d; }
+
+        /* Main Content */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; }
+        .search-container { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        input { background: #1c2128; border: 1px solid #30363d; color: white; padding: 12px; border-radius: 8px; width: 400px; }
+        .mic-btn { background: #30363d; border: none; color: white; padding: 10px; border-radius: 50%; cursor: pointer; font-size: 1.2em; }
+        .mic-active { color: #ff4d4d; animation: pulse 1s infinite; }
         
-        #map { height: 300px; border-radius: 15px; margin-top: 20px; }
-        .forecast-container { display: flex; gap: 10px; overflow-x: auto; margin-top: 20px; padding-bottom: 10px; }
-        .day-card { background: var(--card); min-width: 120px; padding: 15px; border-radius: 15px; text-align: center; }
-        .ai-banner { background: linear-gradient(90deg, #3a0ca3, #7209b7); padding: 15px; border-radius: 10px; margin: 20px 0; font-style: italic; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .info-card { background: var(--card); padding: 25px; border-radius: 20px; }
+        #map { height: 350px; border-radius: 20px; }
+        .forecast-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 20px; }
+        .day-box { background: var(--card); padding: 15px; border-radius: 15px; text-align: center; }
+        .ai-banner { background: #5a189a; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-style: italic; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="search-bar">
-            <form method="POST" style="display:flex; gap:10px;"> {% csrf_token %}
-                <input type="text" name="city" placeholder="Search city or use voice..." required>
-                <select name="speed">
-                    <option value="normal">Speed: Normal</option>
-                    <option value="slow">Speed: Slow</option>
-                </select>
-                <button type="submit">SEARCH</button>
-            </form>
-        </div>
+    <div class="sidebar">
+        <h3>HISTORY</h3>
+        {% for item in history %}
+        <a href="?city={{ item }}" class="history-item">{{ item }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="main-content">
+        <form method="POST" id="searchForm" class="search-container"> {% csrf_token %}
+            <input type="text" name="city" id="cityInput" placeholder="Enter city..." required>
+            <button type="button" class="mic-btn" id="micBtn">🎤</button>
+            <select name="speed" style="background:#1c2128; color:white; border-radius:8px; border:1px solid #30363d;">
+                <option value="normal">Normal</option>
+                <option value="slow">Slow</option>
+            </select>
+            <button type="submit" style="background:var(--accent); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">SEARCH</button>
+        </form>
 
         {% if weather %}
-        <div class="ai-banner">✨ {{ weather.ai_insight }}</div>
+        <div class="ai-banner">✨ AI Tip: {{ weather.ai_insight }}</div>
         
-        <div class="main-grid">
-            <div class="weather-card">
+        <div class="dashboard-grid">
+            <div class="info-card">
                 <h2>{{ weather.city }}</h2>
-                <h1 style="font-size: 4em; margin: 10px 0;">{{ weather.temp }}°C</h1>
+                <h1 style="font-size: 4em; margin: 0;">{{ weather.temp }}°C</h1>
                 <p>{{ weather.desc|title }}</p>
-                <div class="stats-grid">
-                    <div class="stat-item">💧 Humidity<br><strong>{{ weather.humidity }}%</strong></div>
-                    <div class="stat-item">🌬️ Wind<br><strong>{{ weather.wind }} m/s</strong></div>
-                    <div class="stat-item">🧭 Pressure<br><strong>{{ weather.pressure }} hPa</strong></div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px;">
+                    <div>💧 Humidity<br><strong>{{ weather.humidity }}%</strong></div>
+                    <div>🌬️ Wind<br><strong>{{ weather.wind }}m/s</strong></div>
+                    <div>🧭 Pressure<br><strong>{{ weather.pressure }}hPa</strong></div>
                 </div>
                 {% if weather.audio %}
                 <audio autoplay><source src="data:audio/mp3;base64,{{ weather.audio }}" type="audio/mp3"></audio>
@@ -58,12 +71,12 @@
             <div id="map"></div>
         </div>
 
-        <div class="forecast-container">
+        <div class="forecast-row">
             {% for day in forecast %}
-            <div class="day-card">
-                <strong>{{ day.day }}</strong><br>
-                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png"><br>
-                {{ day.temp }}°C
+            <div class="day-box">
+                <div>{{ day.day }}</div>
+                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png">
+                <div>{{ day.temp }}°C</div>
             </div>
             {% endfor %}
         </div>
@@ -72,9 +85,25 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // 1. Microphone / Speech Recognition
+        const micBtn = document.getElementById('micBtn');
+        const cityInput = document.getElementById('cityInput');
+
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.onstart = () => micBtn.classList.add('mic-active');
+            recognition.onend = () => micBtn.classList.remove('mic-active');
+            recognition.onresult = (event) => {
+                cityInput.value = event.results[0][0].transcript;
+                document.getElementById('searchForm').submit();
+            };
+            micBtn.onclick = () => recognition.start();
+        } else { micBtn.style.display = 'none'; }
+
+        // 2. Map Initialization
         {% if weather %}
         var map = L.map('map').setView([{{ weather.lat }}, {{ weather.lon }}], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{y}/{x}.png').addTo(map);
         L.marker([{{ weather.lat }}, {{ weather.lon }}]).addTo(map);
         {% endif %}
     </script>
